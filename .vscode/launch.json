@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/michael/Desktop/sysu内卷个鬼！/study/大三上/编译原理/lab1/program",
+      "program": "/Users/michael/Desktop/sysu内卷个鬼！/study/大三上/编译原理/lab1/program/build/Debug/outDebug"
+    }
+  ]
+}

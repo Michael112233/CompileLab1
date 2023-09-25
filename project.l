@@ -1,7 +1,8 @@
 %option yylineno
 
 %{
-    #include<stdio.h>  
+    #include<stdio.h>
+    #include<stdlib.h>  
     #include<string.h> 
     #include"tree.h"
     #define YYSTYPE Node*
@@ -9,11 +10,14 @@
     int cnt = 0; 
     int lexError = 0;
     int yycolumn = 1;
-    #define YY_User_Action \
+    #define YY_USER_ACTION \
     	yylloc.first_line = yylloc.last_line = yylineno; \
     	yylloc.first_column = yycolumn; \
     	yylloc.last_column = yycolumn + yyleng - 1; \
-    	yycolumn = yycolumn + yyleng; \
+    	yycolumn = yycolumn + yyleng; 
+    int oct2int(char* num);
+    int hex2int(char* num);
+    int string2int(char* num);
 %}
 
  // int类型
@@ -62,7 +66,7 @@ if "if"
 else "else"
 while "while"
 whitespace [' '\t]
-line '\n'
+line \n
 line_annotation "//"
 block_annotation "/*"
 
@@ -103,23 +107,23 @@ block_annotation "/*"
 }
 
 {relop} { 
-    yylval = craeteNode("RELOP", enumLexOther, yylineno, 0, NULL);
+    yylval = createNode("RELOP", enumLexOther, yylineno, 0, NULL);
     return RELOP; 
 }
 
 {plus} { 
     yylval = createNode("PLUS", enumLexOther, yylineno, 0, NULL);
-    return ADD; 
+    return PLUS; 
 }
 
 {minus} {
     yylval = createNode("MINUS", enumLexOther, yylineno, 0, NULL); 
-    return SUB; 
+    return MINUS; 
 }
 
 {star} { 
     yylval = createNode("STAR", enumLexOther, yylineno, 0, NULL);
-    return MUL; 
+    return STAR; 
 }
 
 {dot} { 
@@ -149,6 +153,7 @@ block_annotation "/*"
 
 {type} { 
     yylval = createNode("TYPE", enumLexType, yylineno, 0, NULL);
+    strcpy(yylval->strVal, yytext);
     return TYPE; 
 }
 
@@ -209,8 +214,14 @@ block_annotation "/*"
 
 {id} { 
     yylval = createNode("ID", enumLexId, yylineno, 0, NULL);
-    yylval->strVal = yytext;
+    strcpy(yylval->strVal, yytext);
     return ID;
+}
+
+{float} {
+    yylval = createNode("FLOAT", enumLexFloat, yylineno, 0, NULL);
+    yylval->floatVal = atoi(yytext);
+    return FLOAT;
 }
 
 {hex} { 
@@ -273,9 +284,4 @@ int hex2int(char *num) {
         sum = sum * 16 + tmp;
     }
     return sum;
-}
-
-int yywrap() {
-    // indicate the end of the passage
-    return 1;
 }

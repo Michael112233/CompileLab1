@@ -4,14 +4,24 @@
     #include<stdio.h>
     #include<stdarg.h>
     #include "lex.yy.c"
+    Node* root = NULL;
+    Node** package(int childNum, Node* child1, ...);
     void yyerror(char* msg);
+    int synError = 0;   
 %}
 
 /* declare types */
 
-%token SEMI, COMMA, ID, TYPE, INT, FLOAT
-%token IF, WHILE, ELSE, STRUCT
+%token SEMI COMMA ID TYPE INT FLOAT ASSIGNOP RELOP
+%token IF WHILE ELSE STRUCT RETURN PLUS MINUS STAR DIV DOT AND OR NOT LP RP LB RB LC RC
 
+%left LB RB LP RP DOT
+%right NOT
+%left PLUS MINUS STAR DIV RELOP AND OR
+%right ASSIGNOP
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
 %%
 // High-level Definitions
 Program : ExtDefList                            {
@@ -40,7 +50,7 @@ ExtDecList : VarDec                             {
                                                     $$ = createNode("ExtDecList", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | VarDec COMMA ExtDecList                   {
-                                                    $$ = createNode("ExtDecList", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3))
+                                                    $$ = createNode("ExtDecList", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     ;
 
@@ -136,6 +146,7 @@ Dec : VarDec                                    {
 
 // Expressions
 Exp : Exp ASSIGNOP Exp                          {
+    						    // printf("%s %s %s\n", $1, $2, $3);
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp AND Exp                               {
@@ -148,6 +159,7 @@ Exp : Exp ASSIGNOP Exp                          {
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp PLUS Exp                              {
+						    // printf("%s %s %s\n", $1, $2, $3);
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp MINUS Exp                             {
@@ -201,30 +213,40 @@ Args : Exp COMMA Args                           {
 
 // Statements
 CompSt : LC DefList StmtList RC                 {
-                                                    $$ = createNode("CompSt", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
-                                                }
+						    $$ = createNode("CompSt", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
+						}
     ;
 
 StmtList : Stmt StmtList                        {
+	 					    Node** children = package(2, $1, $2);
                                                     $$ = createNode("StmtList", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
-                                                }
+                                                    for(int i=0; i<2; i++)
+						        printf("%s\n", children[i] -> name);
+						}
     |                                           {
                                                     $$ = createNode("StmtList", enumSynNull, @$.first_line, 0, NULL);
                                                 }
     ;
 
 Stmt : Exp SEMI                                 {
-                                                    $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
-                                                }
+						    Node** children = package(2, $1, $2);
+						    $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
+                                                    for(int i=0; i<2; i++)
+                                                        printf("%s\n", children[i] -> name);
+
+						}
     | CompSt                                    {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | RETURN Exp SEMI                           {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | IF LP Exp RP Stmt                         {
+    | IF LP Exp RP Stmt  %prec LOWER_THAN_ELSE  {
+						    Node** children = package(5, $1, $2, $3, $4, $5);
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
-                                                }
+                                                    for(int i=0; i<5; i++)
+						        printf("%s\n", children[i] -> name);
+						}
     | IF LP Exp RP Stmt ELSE Stmt               {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 7, package(7, $1, $2, $3, $4, $5, $6, $7));
                                                 }
@@ -244,5 +266,6 @@ Node** package(int childNum, Node* child1, ...) {
 }
 
 void yyerror(char* msg) {
-    fprintf(stderr, "Error type B at line %d: %s\n", yylineno, msg);
+    synError++;
+    fprintf(stderr, "Error type B at symbol %s at line %d: %s\n", yytext, yylineno, msg);
 }   

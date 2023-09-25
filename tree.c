@@ -20,8 +20,12 @@ Node* createNode(char* name, NodeType nodeType, int lineno, int childNum, Node**
 }
 
 void printTree(Node* root, int depth) {
-    for(int i=0; i<depth; i++)
-        printf("    ");
+    if(root->nodeType == enumSynNull) {
+	return;
+    }
+    //  printf("depth: %d    ", depth);
+    for(int i=0; i<depth; i++) 
+	printf("  ");
     switch(root->nodeType) {
         case enumSynNotNull:
             printf("%s (%d)\n", root->name, root->lineno);
@@ -33,10 +37,10 @@ void printTree(Node* root, int depth) {
             printf("%s: %s\n", root->name, root->strVal);
             break;
         case enumLexInt:
-            printf("%s: %s\n", root->name, root->intVal);
+            printf("%s: %d\n", root->name, root->intVal);
             break;
         case enumLexFloat:
-            printf("%s: %s\n", root->name, root->floatVal);
+            printf("%s: %f\n", root->name, root->floatVal);
             break;
         case enumLexOther:
             printf("%s\n", root->name);
@@ -45,6 +49,6 @@ void printTree(Node* root, int depth) {
             break;
     }
     for(int i=0; i<root->childNum; i++) {
-        printNode(root->children[i], depth+1);
+        printTree(root->children[i], depth+1);
     }
 }

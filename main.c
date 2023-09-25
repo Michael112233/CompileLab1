@@ -1,9 +1,12 @@
 #include<stdio.h>
+#include "tree.h"
 
 extern int yyrestart(FILE* f);
 extern int yyparse();
-// extern int lexError = 0;
-// extern int synError = 0;
+extern Node* root;
+extern void printTree(Node* root, int depth);
+extern int lexError;
+extern int synError;
 
 int main(int argc, char** argv) {
     if(argc <= 1)
@@ -15,4 +18,6 @@ int main(int argc, char** argv) {
     }
     yyrestart(f);
     yyparse();
+    if(root != NULL && lexError == 0 && synError == 0)
+        printTree(root, 0);
 }

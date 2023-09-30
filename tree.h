@@ -8,7 +8,8 @@ typedef enum {
     enumLexType,
     enumLexInt,
     enumLexFloat,
-    enumLexOther
+    enumLexOther,
+    enumLexError,
 } NodeType;
 
 typedef struct Node_d {
@@ -18,7 +19,7 @@ typedef struct Node_d {
     union {
         char strVal[32];
         int intVal;
-        float floatVal;
+        double floatVal;
     };
     int childNum;
     struct Node_d** children;

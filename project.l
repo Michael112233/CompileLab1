@@ -33,12 +33,13 @@ hex_num [0-9a-fA-F]
 hex "0"[xX]{hex_num}+
 
  // float类型
-float {digit}+"."{digit}+
-invalid_efloat "."[Ee][+-]?{digit}*
-efloat {digit}*"."{digit}*[Ee][+-]?{digit}+
+normal_float {digit}+"."{digit}+
+efloat ({digit}*"."{digit}+|{digit}+".")[eE][+-]?{digit}+
+float {normal_float}|{efloat}
+ // float ({digit}+"."{digit}+) | (({digit}*"."{digit}+ | {digit}+".")[eE][+-]?{digit}+)
 
  // 标识符
-id [a-zA-Z][a-zA-Z0-9_]*
+id [_a-zA-Z][a-zA-Z0-9_]*
 
  // 各种符号
 semi ";"
@@ -65,7 +66,7 @@ return "return"
 if "if"
 else "else"
 while "while"
-whitespace [' '\t]
+whitespace [ \t]
 line \n
 line_annotation "//"
 block_annotation "/*"
@@ -83,9 +84,24 @@ block_annotation "/*"
 {block_annotation} {
     char start = input();
     char end = input();
-    while(start != '*' && end != '/') {
+    int cnt = 0;
+    int check = 0;
+    while(start != '*' || end != '/') {
         start = end;
         end = input();
+	// printf("%c%c %d%d\n", start, end, start, end);
+	if(start == end && end == 0) {
+	    check = 0;
+	    cnt++;
+	} else {
+	    check = 1;
+	    cnt = 0;
+	}
+	if(cnt == 10000 && !check) {
+	    printf("Error type A at Line %d: Mysterious characters \"*/\"\n", yylineno);
+    	    lexError++;
+	    break;
+	}
     }
 }
 
@@ -212,7 +228,8 @@ block_annotation "/*"
     return WHILE; 
 }
 
-{id} { 
+{id} {
+    // printf("%s\n", yytext); 
     yylval = createNode("ID", enumLexId, yylineno, 0, NULL);
     strcpy(yylval->strVal, yytext);
     return ID;
@@ -220,7 +237,8 @@ block_annotation "/*"
 
 {float} {
     yylval = createNode("FLOAT", enumLexFloat, yylineno, 0, NULL);
-    yylval->floatVal = atoi(yytext);
+    yylval -> floatVal = atof(yytext);
+    // printf("%s %f %f\n", yytext, tmp, yylval->floatVal);
     return FLOAT;
 }
 
@@ -246,7 +264,9 @@ block_annotation "/*"
 
 . { 
     printf("Error type A at Line %d: Mysterious characters \"%s\"\n", yylineno, yytext); 
-    lexError++; 
+    lexError++;
+    // yylval = createNode("Error", enumLexError, yylineno, 0, NULL);
+    // return ERROR;
 }
 
 %%

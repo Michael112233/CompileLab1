@@ -23,7 +23,7 @@ void printTree(Node* root, int depth) {
     if(root->nodeType == enumSynNull) {
 	return;
     }
-    //  printf("depth: %d    ", depth);
+    // printf("depth: %d    ", depth);
     for(int i=0; i<depth; i++) 
 	printf("  ");
     switch(root->nodeType) {

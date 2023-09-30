@@ -13,140 +13,254 @@
 /* declare types */
 
 %token SEMI COMMA ID TYPE INT FLOAT ASSIGNOP RELOP
-%token IF WHILE ELSE STRUCT RETURN PLUS MINUS STAR DIV DOT AND OR NOT LP RP LB RB LC RC
+%token IF WHILE ELSE STRUCT RETURN PLUS MINUS STAR DIV DOT AND OR NOT LP RP LB RB LC RC 
 
-%left LB RB LP RP DOT
-%right NOT
-%left PLUS MINUS STAR DIV RELOP AND OR
 %right ASSIGNOP
+%left OR
+%left AND
+%left RELOP
+%left PLUS MINUS
+%left STAR DIV
+%right NOT
+%left LB RB LP RP DOT
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
+
+%nonassoc EXT
+%nonassoc FUNC
+
+%nonassoc LOWER
+%nonassoc UPPER
+
 %%
 // High-level Definitions
 Program : ExtDefList                            {
-                                                    $$ = createNode("Program", enumSynNotNull, @$.first_line, 1, package(1, $1));
+						    // printf("ExtDefList\n");
+						    $$ = createNode("Program", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                     root = $$;
                                                 }
     ;
 ExtDefList : ExtDef ExtDefList                  {
+	   					    // printf("ExtDef ExtDefList\n");
                                                     $$ = createNode("ExtDefList", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
     |                                           {
+						    // printf("ExtDefList Empty\n");
                                                     $$ = createNode("ExtDefList", enumSynNull, @$.first_line, 0, NULL);
                                                 }
     ;
 ExtDef : Specifier ExtDecList SEMI              {
-                                                    $$ = createNode("ExtDef", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
-                                                }
+       				 	   	    // printf("Spe Ext SEMI %d\n", yylineno);
+                                       	   	    $$ = createNode("ExtDef", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
+                                       		}
     | Specifier SEMI                            {
+						    // printf("Spe SEMI %d\n", yylineno);
                                                     $$ = createNode("ExtDef", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
-    | Specifier FunDec CompSt                   {
+    | Specifier FunDec CompSt  			{
+						    // printf("Specifier FunDec CompSt\n");
                                                     $$ = createNode("ExtDef", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | error SEMI		                {
+						    // printf("err SEMI %d\n", yylineno);
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
+    | error Specifier ExtDecList SEMI		{
+						    // printf("err Spe Ext SEMI %d\n", yylineno);
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+						    yyerrok;
+						}
+    | error Specifier FunDec CompSt		{
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
     ;
-ExtDecList : VarDec                             {
+ExtDecList : VarDec             %prec UPPER     {
+	   					    // printf("Ext VarDec\n");
                                                     $$ = createNode("ExtDecList", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | VarDec COMMA ExtDecList                   {
+						    // printf("Var COMMA Ext\n");
                                                     $$ = createNode("ExtDecList", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | VarDec error COMMA ExtDecList     	{ 
+  						    // printf("Var err COMMA Ext\n");
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | VarDec error 	        %prec LOWER	{
+						    // printf("VarDec error!\n");
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }	
     ;
 
 // Specifiers
 Specifier : TYPE                                {
+	  					    // printf("TYPE\n");
                                                     $$ = createNode("Specifier", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
-    | StructSPecifier                           {
+    | StructSpecifier                           {
+						    // printf("Spe Struct %d\n", yylineno);
                                                     $$ = createNode("Specifier", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     ;
 
-StructSPecifier : STRUCT OptTag LC DefList RC   {
-                                                    $$ = createNode("StructSPecifier", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
+StructSpecifier : STRUCT OptTag LC DefList RC   {
+						    // printf("LC DefList RC\n");
+                                                    $$ = createNode("StructSpecifier", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
                                                 }
     | STRUCT Tag                                {
-                                                    $$ = createNode("StructSPecifier", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
+						    // printf("Tag\n");
+                                                    $$ = createNode("StructSpecifier", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
+    | STRUCT error LC DefList RC   		{ 
+						    // printf("error LC\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
+    | STRUCT OptTag LC error RC                 { 
+						    // printf("error RC\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
+    | STRUCT OptTag LC error                    {
+						    // printf("LC error\n"); 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
     ;
 
 OptTag : ID                                     {
+       						    // printf("OptTag ID\n");
                                                     $$ = createNode("OptTag", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     |                                           {
+						    // printf("OptTag empty\n");
                                                     $$ = createNode("OptTag", enumSynNull, @$.first_line, 0, NULL);
                                                 }
     ;
 
 Tag : ID                                        {
+    						    // printf("Tag ID\n");
                                                     $$ = createNode("Tag", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     ;
 
 // Declartors 
 VarDec : ID                                     {
+       						    // printf("Var ID %d\n", yylineno);
                                                     $$ = createNode("VarDec", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | VarDec LB INT RB                          {
+						    // printf("Var LB int RB\n");
                                                     $$ = createNode("VarDec", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
+                                                }
+    | VarDec LB error RB			{ 
+						    // printf("Var LB error RB\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
+    | VarDec LB error				{ 
+						    // printf("Var LB error\n");
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
                                                 }
     ;
 
 FunDec : ID LP VarList RP                       {
+       						    // printf("ID LP Var RP\n");
                                                     $$ = createNode("FunDec", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
-                                                }
+                                                }                                             
     | ID LP RP                                  {
+						    // printf("ID LP RP\n");
                                                     $$ = createNode("FunDec", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | ID LP error RP				{ 
+						    // printf("ID LP error RP\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
+    | ID LP error				{ 
+						    // printf("ID LP error\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
     ;
 
 VarList : ParamDec COMMA VarList                {
+						    // printf("ParamDec COMMA Var\n");
                                                     $$ = createNode("VarList", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | ParamDec                                  {
+						    // printf("varList Param\n");
                                                     $$ = createNode("VarList", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     ;
 
 ParamDec : Specifier VarDec                     {
+	 					    // printf("Param Spe Var\n");
                                                     $$ = createNode("ParamDec", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
     ;
 
 // Local Definitions
 DefList : Def DefList                           {
+						    // printf("Def DefList %d\n", yylineno);
                                                     $$ = createNode("DefList", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
     |                                           {
+						    // printf("Param error\n");
                                                     $$ = createNode("DefList", enumSynNull, @$.first_line, 0, NULL);
                                                 }
     ;
 
 Def : Specifier DecList SEMI                    {
+    						    // printf("Def Specifier Dec SEMI\n");
+                                                    $$ = createNode("Def", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
+                                                }
+    | Specifier error SEMI			{
+                                                    // printf("Specifier err SEMI\n");
                                                     $$ = createNode("Def", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     ;
 
 DecList : Dec                                   {
+						    // printf("DecList Dec %d\n", yylineno);
                                                     $$ = createNode("DecList", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | Dec COMMA DecList                         {
+						    // printf("Dec COMMA DecList\n");
                                                     $$ = createNode("DecList", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | Dec error DecList				{ 
+						    // printf("Dec error DecList\n");
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
     ;
 
 Dec : VarDec                                    {
+    						    // printf("Dec Var %d\n", yylineno);
                                                     $$ = createNode("Dec", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | VarDec ASSIGNOP Exp                       {
+						    // printf("Var = Exp\n");
                                                     $$ = createNode("Dec", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | VarDec ASSIGNOP error			{
+						    // printf("var = err\n");
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
     ;
 
 // Expressions
 Exp : Exp ASSIGNOP Exp                          {
-    						    // printf("%s %s %s\n", $1, $2, $3);
+    						    // printf("exp = exp\n");
+    						    // printf("%s %s %s\n", $1->name, $2->name, $3->name);
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp AND Exp                               {
@@ -156,10 +270,11 @@ Exp : Exp ASSIGNOP Exp                          {
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp RELOP Exp                             {
+						    // printf("Exp RELOP Exp\n");
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp PLUS Exp                              {
-						    // printf("%s %s %s\n", $1, $2, $3);
+						    // printf("%s %s %s\n", $1->name, $2->name, $3->name);
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     | Exp MINUS Exp                             {
@@ -171,36 +286,81 @@ Exp : Exp ASSIGNOP Exp                          {
     | Exp DIV Exp                               {
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | LP Exp RP                                 {
+    | LP Exp RP					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | MINUS Exp                                 {
+    | MINUS Exp					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
-    | NOT Exp                                   {
+    | NOT Exp					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
-    | ID LP Args RP                             {
+    | ID LP Args RP				{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
                                                 }
-    | ID LP RP                                  {
+    | ID LP RP					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | Exp LB Exp RB                             {
+    | Exp LB Exp RB				{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 4, package(4, $1, $2, $3, $4));
                                                 }
-    | Exp DOT ID                                {
+    | Exp DOT ID				{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | ID                                        {
+    | ID					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
-    | INT                                       {
+    | INT					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
-    | FLOAT                                     {
+    | FLOAT					{
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
+    | Exp ASSIGNOP error			{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+						}
+    | Exp AND error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+						}
+    | Exp OR error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+						    yyerrok;
+                                                }
+    | Exp RELOP error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | Exp PLUS error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | Exp MINUS error				{
+						    // printf("exp minus error\n");
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+						}
+    | Exp STAR error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | Exp DIV error				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | ID LP error RP				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | Exp LB error RB				{
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+                                                }
+    | ID LP Args error				{
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
+                                                    yyerrok;
+						}
     ;
 
 Args : Exp COMMA Args                           {
@@ -218,10 +378,10 @@ CompSt : LC DefList StmtList RC                 {
     ;
 
 StmtList : Stmt StmtList                        {
-	 					    Node** children = package(2, $1, $2);
+	 					    //Node** children = package(2, $1, $2);
                                                     $$ = createNode("StmtList", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
-                                                    for(int i=0; i<2; i++)
-						        printf("%s\n", children[i] -> name);
+                                                    //for(int i=0; i<2; i++)
+						    //     printf("%s\n", children[i] -> name);
 						}
     |                                           {
                                                     $$ = createNode("StmtList", enumSynNull, @$.first_line, 0, NULL);
@@ -229,23 +389,31 @@ StmtList : Stmt StmtList                        {
     ;
 
 Stmt : Exp SEMI                                 {
-						    Node** children = package(2, $1, $2);
+						    // Node** children = package(2, $1, $2);
 						    $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
-                                                    for(int i=0; i<2; i++)
-                                                        printf("%s\n", children[i] -> name);
+                                                    // for(int i=0; i<2; i++)
+                                                    //    printf("%s\n", children[i] -> name);
 
 						}
+    | Exp error					{ 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
     | CompSt                                    {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | RETURN Exp SEMI                           {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
+    | RETURN Exp error 				{ 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+    						}
     | IF LP Exp RP Stmt  %prec LOWER_THAN_ELSE  {
-						    Node** children = package(5, $1, $2, $3, $4, $5);
+						    // Node** children = package(5, $1, $2, $3, $4, $5);
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
-                                                    for(int i=0; i<5; i++)
-						        printf("%s\n", children[i] -> name);
+                                                    // for(int i=0; i<5; i++)
+						    //    printf("%s\n", children[i] -> name);
 						}
     | IF LP Exp RP Stmt ELSE Stmt               {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 7, package(7, $1, $2, $3, $4, $5, $6, $7));
@@ -253,6 +421,11 @@ Stmt : Exp SEMI                                 {
     | WHILE LP Exp RP Stmt                      {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
                                                 }
+    | error SEMI				{ 
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+                                                }
+
 %%
 
 Node** package(int childNum, Node* child1, ...) {
@@ -266,6 +439,8 @@ Node** package(int childNum, Node* child1, ...) {
 }
 
 void yyerror(char* msg) {
+    if(msg == "")
+	return;
     synError++;
     fprintf(stderr, "Error type B at symbol %s at line %d: %s\n", yytext, yylineno, msg);
 }   

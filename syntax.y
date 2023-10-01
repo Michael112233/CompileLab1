@@ -7,7 +7,8 @@
     Node* root = NULL;
     Node** package(int childNum, Node* child1, ...);
     void yyerror(char* msg);
-    int synError = 0;   
+    int synError = 0; 
+    int check[100000] = {0};  
 %}
 
 /* declare types */
@@ -62,20 +63,21 @@ ExtDef : Specifier ExtDecList SEMI              {
 						    // printf("Specifier FunDec CompSt\n");
                                                     $$ = createNode("ExtDef", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
-    | error SEMI		                {
-						    // printf("err SEMI %d\n", yylineno);
-						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
-                                                    yyerrok;
-						}
-    | error Specifier ExtDecList SEMI		{
+    | error Specifier ExtDecList SEMI           {
 						    // printf("err Spe Ext SEMI %d\n", yylineno);
 						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
 						    yyerrok;
 						}
-    | error Specifier FunDec CompSt		{
+    | error Specifier FunDec CompSt 	   	{
+						    // printf("err Spe Fun SEMI %d\n", yylineno);	
 						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
                                                     yyerrok;
 						}
+    | error SEMI                                {
+						    // printf("error SEMI %d\n", yylineno);
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+                                                }
     ;
 ExtDecList : VarDec             %prec UPPER     {
 	   					    // printf("Ext VarDec\n");
@@ -198,12 +200,17 @@ VarList : ParamDec COMMA VarList                {
 						    // printf("varList Param\n");
                                                     $$ = createNode("VarList", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
+ 	
     ;
 
 ParamDec : Specifier VarDec                     {
 	 					    // printf("Param Spe Var\n");
                                                     $$ = createNode("ParamDec", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
                                                 }
+	 | error VarDec				{
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+						    yyerrok;
+						}
     ;
 
 // Local Definitions
@@ -215,6 +222,7 @@ DefList : Def DefList                           {
 						    // printf("Param error\n");
                                                     $$ = createNode("DefList", enumSynNull, @$.first_line, 0, NULL);
                                                 }
+
     ;
 
 Def : Specifier DecList SEMI                    {
@@ -226,7 +234,6 @@ Def : Specifier DecList SEMI                    {
                                                     $$ = createNode("Def", enumSynNotNull, @$.first_line, 3, package(3, $1, $2, $3));
                                                 }
     ;
-
 DecList : Dec                                   {
 						    // printf("DecList Dec %d\n", yylineno);
                                                     $$ = createNode("DecList", enumSynNotNull, @$.first_line, 1, package(1, $1));
@@ -255,6 +262,10 @@ Dec : VarDec                                    {
                                                     $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
                                                     yyerrok;
 						}
+    | error ASSIGNOP Exp                        { 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+                                                }						
     ;
 
 // Expressions
@@ -317,6 +328,7 @@ Exp : Exp ASSIGNOP Exp                          {
                                                     $$ = createNode("Exp", enumSynNotNull, @$.first_line, 1, package(1, $1));
                                                 }
     | Exp ASSIGNOP error			{
+						    // printf("exp = err\n");
                                                     $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
                                                     yyerrok;
 						}
@@ -342,10 +354,12 @@ Exp : Exp ASSIGNOP Exp                          {
                                                     yyerrok;
 						}
     | Exp STAR error				{
+						    // printf("exp STAR error\n");
                                                     $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
                                                     yyerrok;
                                                 }
-    | Exp DIV error				{
+    | Exp DIV error				{ 
+						    // printf("exp div error\n");
                                                     $$ = createNode("Error", enumSynNull, @$.first_line, 0, package(0, NULL));
                                                     yyerrok;
                                                 }
@@ -389,14 +403,10 @@ StmtList : Stmt StmtList                        {
     ;
 
 Stmt : Exp SEMI                                 {
-						    // Node** children = package(2, $1, $2);
 						    $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 2, package(2, $1, $2));
-                                                    // for(int i=0; i<2; i++)
-                                                    //    printf("%s\n", children[i] -> name);
-
 						}
     | Exp error					{ 
-    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
     						    yyerrok; 
     						}
     | CompSt                                    {
@@ -418,13 +428,48 @@ Stmt : Exp SEMI                                 {
     | IF LP Exp RP Stmt ELSE Stmt               {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 7, package(7, $1, $2, $3, $4, $5, $6, $7));
                                                 }
+    | IF LP error RP Stmt %prec LOWER_THAN_ELSE { 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+                                                    yyerrok; 
+                                                }
+    | IF LP error Stmt %prec LOWER_THAN_ELSE    {
+                                                    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+                                                }					    
+    | IF LP Exp RP error ELSE Stmt              { 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+                                                }
+    | IF LP error RP ELSE Stmt              	{ 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+                                                }
+    | error LP Exp RP Stmt                      { 
+    						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL); 
+    						    yyerrok; 
+                                                }
     | WHILE LP Exp RP Stmt                      {
                                                     $$ = createNode("Stmt", enumSynNotNull, @$.first_line, 5, package(5, $1, $2, $3, $4, $5));
                                                 }
-    | error SEMI				{ 
+    | WHILE LP error RP Stmt	 		{
+						    // printf("while LP error RP %d\n", yylineno);
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
+    | WHILE LP error Stmt			{
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
+    | error SEMI			        {
+						    // printf("Stmt error SEMI %d\n", yylineno);
                                                     $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
                                                     yyerrok;
                                                 }
+    | error CompSt				{
+						    // printf("error CompSt %d\n", yylineno);
+						    $$ = createNode("Error", enumSynNull, @$.first_line, 0, NULL);
+                                                    yyerrok;
+						}
 
 %%
 
@@ -439,8 +484,9 @@ Node** package(int childNum, Node* child1, ...) {
 }
 
 void yyerror(char* msg) {
-    if(msg == "")
+    if(msg == "" || check[yylineno] == 1)
 	return;
     synError++;
     fprintf(stderr, "Error type B at symbol %s at line %d: %s\n", yytext, yylineno, msg);
+    check[yylineno] = 1;
 }   
